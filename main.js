@@ -1,10 +1,12 @@
 import "./style.css";
-
 import * as THREE from "three";
 import { ARButton } from "three/addons/webxr/ARButton.js";
 
 let camera, scene, renderer;
 let controller;
+let meshes = []; 
+let wallMesh;
+let pointer; 
 
 init();
 animate();
@@ -38,36 +40,50 @@ function init() {
 
   document.body.appendChild(ARButton.createButton(renderer));
 
-  //
-
-  const geometry = new THREE.CylinderGeometry(0, 0.05, 0.2, 32).rotateX(
-    Math.PI / 2
-  );
-  const wallGeometry = new THREE.PlaneGeometry(1, 1);
+  // Create the initial wallGeometry
+  const wallGeometry = new THREE.PlaneGeometry(0.3, 0.3);
   const wallMaterial = new THREE.MeshBasicMaterial({
-    color: 0x808080,
+    transparent: true,
+    color: "#000000",
+    alphaTest: 0,
     side: THREE.DoubleSide,
   });
-  const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
 
-  // Position and rotate the wall as needed
-  wallMesh.position.set(0, 0, -1); // Adjust the Z-position to place it in front of the camera
+  wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+  wallMesh.position.set(0, 0, -1);
   scene.add(wallMesh);
 
-  function onSelect() {
+
+  const pointerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+  const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  pointer = new THREE.Mesh(pointerGeometry, pointerMaterial);
+  pointer.visible = false; 
+  scene.add(pointer);
+  
+  document.querySelector("#ARButton").addEventListener("click", function () {
+    pointer.visible = true;
+  });
+
+  // When the pointer is clicked, place an object at its position
+  pointer.addEventListener("click", function (event) {
+    console.log(event)
     const material = new THREE.MeshPhongMaterial({
       color: 0xffffff * Math.random(),
     });
+
+    const size = 0.5;
+    const geometry = new THREE.PlaneGeometry(size, size);
     const mesh = new THREE.Mesh(geometry, material);
 
-    // Set the position and rotation of the mesh on the wall
-    mesh.position.copy(controller.position); // Use the controller's position
-    mesh.rotation.copy(wallMesh.rotation); // Use the wall's rotation
-    wallMesh.add(mesh); // Add the mesh to the wall
-  }
+    // Place the object at the pointer's position
+    mesh.position.copy(pointer.position);
+
+    // Add the mesh to the array and the scene
+    meshes.push(mesh);
+    scene.add(mesh);
+  });
 
   controller = renderer.xr.getController(0);
-  controller.addEventListener("select", onSelect);
   scene.add(controller);
 
   window.addEventListener("resize", onWindowResize);
@@ -79,8 +95,6 @@ function onWindowResize() {
 
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
-
-//
 
 function animate() {
   renderer.setAnimationLoop(render);
